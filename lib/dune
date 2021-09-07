@@ -1,0 +1,4 @@
+(library
+ (name gettext)
+ (public_name gettext)
+ (libraries gettext.po gettext.locale))

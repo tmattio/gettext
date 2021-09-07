@@ -1,0 +1,4 @@
+(tests
+ (names gettext_test)
+ (package gettext)
+ (libraries alcotest gettext gettext.po))
