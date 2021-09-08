@@ -19,8 +19,8 @@
 
 (package
  (name gettext)
- (synopsis " Internationalization and localization support for OCaml")
- (description " Internationalization and localization support for OCaml")
+ (synopsis "Internationalization and localization support for OCaml")
+ (description "Internationalization and localization support for OCaml")
  (depends
   (ocaml (>= 4.08.0))
   dune

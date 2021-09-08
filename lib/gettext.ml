@@ -61,15 +61,47 @@ module type Impl = sig
 
   val gettext : string -> string
 
+  val fgettext : ('a, Format.formatter, unit, unit, unit, string) format6 -> 'a
+
   val dgettext : string -> string -> string
+
+  val fdgettext :
+    string -> ('a, Format.formatter, unit, unit, unit, string) format6 -> 'a
 
   val dcgettext : string -> category -> string -> string
 
+  val fdcgettext :
+    string ->
+    category ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    'a
+
   val ngettext : string -> string -> int -> string
+
+  val fngettext :
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    int ->
+    'a
 
   val dngettext : string -> string -> string -> int -> string
 
+  val fdngettext :
+    string ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    int ->
+    'a
+
   val dcngettext : string -> category -> string -> string -> int -> string
+
+  val fdcngettext :
+    string ->
+    category ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    int ->
+    'a
 end
 
 module Translation_map = struct
@@ -160,11 +192,23 @@ module Make (Config : Config) : Impl = struct
     in
     match translated with "" -> msgid | _ -> translated
 
+  let fdcgettext domain category fmt =
+    let fmt =
+      Scanf.format_from_string
+        (dcgettext domain category (string_of_format fmt))
+        fmt
+    in
+    Format.asprintf fmt
+
   let dgettext domain msgid = dcgettext domain LC_MESSAGES msgid
+
+  let fdgettext domain fmt = fdcgettext domain LC_MESSAGES fmt
 
   let gettext msgid = dcgettext "messages" LC_MESSAGES msgid
 
-  let dcngettext domain category msgid _msgid_plural n =
+  let fgettext fmt = fdcgettext "messages" LC_MESSAGES fmt
+
+  let dcngettext domain category msgid msgid_plural n =
     let plural_form = Plural.plural (Gettext_locale.to_string t.locale) n in
     let translated =
       match
@@ -187,17 +231,89 @@ module Make (Config : Config) : Impl = struct
             (Unknown_msgid
                (Gettext_locale.to_string t.locale, category, domain, msgid))
     in
-    match translated with "" -> msgid | _ -> translated
+    match translated with
+    | "" when plural_form > 0 -> msgid_plural
+    | "" -> msgid
+    | _ -> translated
+
+  let fdcngettext domain category fmt fmt_plural n =
+    let fmt =
+      Scanf.format_from_string
+        (dcngettext domain category (string_of_format fmt)
+           (string_of_format fmt_plural)
+           n)
+        fmt
+    in
+    Format.asprintf fmt
 
   let dngettext domain msgid msgid_plural n =
     dcngettext domain LC_MESSAGES msgid msgid_plural n
 
+  let fdngettext domain msgid msgid_plural n =
+    fdcngettext domain LC_MESSAGES msgid msgid_plural n
+
   let ngettext msgid msgid_plural n =
     dcngettext "messages" LC_MESSAGES msgid msgid_plural n
+
+  let fngettext msgid msgid_plural n =
+    fdcngettext "messages" LC_MESSAGES msgid msgid_plural n
 end
 
-let from_directory ?default_locale:_ ?default_domain:_ ?allowed_locales:_ _ =
-  failwith "TODO"
+let from_crunch ?(default_locale = "en") ?(default_domain = "messages")
+    ?allowed_locales file_list read =
+  let po =
+    List.filter_map
+      (fun f ->
+        match String.split_on_char '/' f with
+        | [ locale; category; filename ] -> (
+            try
+              let locale = Gettext_locale.of_string locale in
+              let category = category_of_string category in
+              let domain = Filename.remove_extension filename in
+              if Filename.extension filename = ".po" then
+                let content = read f in
+                Some (locale, category, domain, Gettext_po.read_po content)
+              else None
+            with _ -> None)
+        | _ -> None)
+      file_list
+  in
+  let m =
+    (module Make (struct
+      let default_locale = default_locale
 
-let from_crunch ?default_locale:_ ?default_domain:_ ?allowed_locales:_ _ =
-  failwith "TODO"
+      let default_domain = default_domain
+
+      let allowed_locales = allowed_locales
+
+      let po = po
+    end) : Impl)
+  in
+  m
+
+let from_directory ?default_locale ?default_domain ?allowed_locales dir =
+  let file_list =
+    let rec loop result = function
+      | f :: fs when Sys.is_directory f ->
+          Sys.readdir f |> Array.to_list
+          |> List.map (Filename.concat f)
+          |> List.append fs |> loop result
+      | f :: fs -> loop (f :: result) fs
+      | [] -> result
+    in
+    loop [] [ dir ]
+  in
+  let read_file filename =
+    let lines = ref [] in
+    let chan = open_in filename in
+    try
+      while true do
+        lines := input_line chan :: !lines
+      done;
+      assert false
+    with End_of_file ->
+      close_in chan;
+      String.concat "\n" (List.rev !lines)
+  in
+  from_crunch ?default_locale ?default_domain ?allowed_locales file_list
+    read_file

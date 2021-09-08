@@ -44,15 +44,29 @@ module type Impl = sig
       It is the equivalent of [dgettext "messages"] and
       [dcgettext "messages" LC_MESSAGES]. *)
 
+  val fgettext : ('a, Format.formatter, unit, unit, unit, string) format6 -> 'a
+  (** ??? *)
+
   val dgettext : string -> string -> string
   (** [dgettext domain msgid] returns the translation of the string [msgid] in
       the [domain] domain and the [LC_MESSAGES] category.
 
       It is the equivalent of [dcgettext domain LC_MESSAGES]. *)
 
+  val fdgettext :
+    string -> ('a, Format.formatter, unit, unit, unit, string) format6 -> 'a
+  (** ??? *)
+
   val dcgettext : string -> category -> string -> string
   (** [dcgettext domain category msgid] returns the translation of the string
       [msgid] in the [domain] domain and the [category] category. *)
+
+  val fdcgettext :
+    string ->
+    category ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    'a
+  (** ??? *)
 
   val ngettext : string -> string -> int -> string
   (** [gettext msgid msgid_plural n] returns the pluralized translation of the
@@ -61,6 +75,13 @@ module type Impl = sig
       It is the equivalent of [dngettext "messages"] and
       [dcngettext "messages" LC_MESSAGES]. *)
 
+  val fngettext :
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    int ->
+    'a
+  (** ??? *)
+
   val dngettext : string -> string -> string -> int -> string
   (** [dgettext domain msgid msgid_plural n] returns the pluralized translation
       of the string [msgid] in the [domain] domain and the [LC_MESSAGES]
@@ -68,10 +89,27 @@ module type Impl = sig
 
       It is the equivalent of [dcgettext domain LC_MESSAGES]. *)
 
+  val fdngettext :
+    string ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    int ->
+    'a
+  (** ??? *)
+
   val dcngettext : string -> category -> string -> string -> int -> string
   (** [dcgettext domain category msgid msgid_plural n] returns the pluralized
       translation of the string [msgid] in the [domain] domain and the
       [category] category. *)
+
+  val fdcngettext :
+    string ->
+    category ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    ('a, Format.formatter, unit, unit, unit, string) format6 ->
+    int ->
+    'a
+  (** ??? *)
 end
 
 module Make (_ : Config) : Impl
@@ -91,7 +129,7 @@ val from_crunch :
   ?default_domain:string ->
   ?allowed_locales:string list ->
   string list ->
-  (string -> string option) ->
+  (string -> string) ->
   (module Impl)
 (** [from_directory ?default_locale ?default_domain ?allowed_locales file_list read_fun]
     returns a Gettext implementation module given the file list [file_list] and
